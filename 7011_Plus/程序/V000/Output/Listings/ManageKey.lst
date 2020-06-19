@@ -1,0 +1,240 @@
+C51 COMPILER V9.57.0.0   MANAGEKEY                                                         05/28/2020 16:49:20 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE MANAGEKEY
+OBJECT MODULE PLACED IN ..\Output\Objects\ManageKey.obj
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE ..\User\AppCode\ManageLayer\ManageKey.c LARGE OPTIMIZE(8,SPEED) BROWSE INCD
+                    -IR(..\User\AppCode\AppLayer;..\User\AppCode\DriverLayer;..\User\AppCode\ManageLayer;..\User\AppCode\WIFILayer;..\User\Sy
+                    -sCode\Core) DEBUG OBJECTEXTEND PRINT(..\Output\Listings\ManageKey.lst) OBJECT(..\Output\Objects\ManageKey.obj)
+
+line level    source
+
+   1          #include "ManageKey.h"
+   2          #include "TypeDef.h"
+   3          #include "SysDataDef.h"
+   4          #include "ManageLed.h"
+   5          #include "Panel.h"
+   6          #include "ManageLed.h"
+   7          
+   8          UI08 KeyScan(void)
+   9          {
+  10   1              #define KEY_TIME        50
+  11   1          
+  12   1          static UI08 i = 0;
+  13   1              static UI16 Count = 0;
+  14   1          static UI08 key_value = 0;
+  15   1      //      UI08 key_value = 0;
+  16   1          
+  17   1          switch(i)
+  18   1          {
+  19   2              case 0:
+  20   2                  if(KEY1 == 0 || KEY2 == 0 || KEY3 == 0)
+  21   2                  {
+  22   3                      i++;  
+  23   3                  }
+  24   2                  break;
+  25   2              
+  26   2              case 1:
+  27   2                  if(KEY1 == 0 || KEY2 == 0 || KEY3 == 0)
+  28   2                  {
+  29   3                      i++;
+  30   3                      if(KEY1 == 0)       key_value = 0x01;
+  31   3                      else if(KEY2 == 0)      key_value = 0x02;
+  32   3                      else if(KEY3 == 0)      key_value = 0x03;
+  33   3                  }
+  34   2                  else
+  35   2                  {
+  36   3                      key_value = 0;
+  37   3                      i = 0;  
+  38   3                  }
+  39   2                  
+  40   2                  break;
+  41   2              
+  42   2              case 2:
+  43   2                  if(KEY1 == 0 || KEY2 == 0 || KEY3 == 0)    
+  44   2                  {}
+  45   2                  else    // 表示都弹起来了
+  46   2                  {
+  47   3                      i = 0;
+  48   3                      Count = 0;
+  49   3                      
+  50   3                      if(key_value == 0x01)       
+  51   3                      {
+  52   4                          key_value = 0;
+  53   4                          return 0x01;
+C51 COMPILER V9.57.0.0   MANAGEKEY                                                         05/28/2020 16:49:20 PAGE 2   
+
+  54   4                      }
+  55   3                      else if(key_value == 0x02)      
+  56   3                      {
+  57   4                          key_value = 0;
+  58   4                          return 0x02;
+  59   4                      }
+  60   3                      else if(key_value == 0x03)      
+  61   3                      {
+  62   4                          key_value = 0;
+  63   4                          return 0x03; 
+  64   4                      }
+  65   3                  }
+  66   2                  
+  67   2                  if((++Count) > KEY_TIME)
+  68   2                  {
+  69   3                      i++;
+  70   3                  }
+  71   2                  break;
+  72   2                  
+  73   2              case 3:
+  74   2                  if((++Count) >= KEY_TIME)
+  75   2                  {
+  76   3                      Count = 0;
+  77   3      
+  78   3                      if(KEY1 == 0)       return 0x11;
+  79   3                      else if(KEY2 == 0)      return 0x12;
+  80   3                      else if(KEY3 == 0)      return 0x13;
+  81   3                      
+  82   3                      if(KEY1 == 0 || KEY2 == 0 || KEY3 == 0)
+  83   3                      {}
+  84   3                      else   // 表示都弹起来了 
+  85   3                      {
+  86   4                          key_value = 0;
+  87   4                          i = 0;
+  88   4                          Count = 0;
+  89   4                          return 0xFF;
+  90   4                      }                
+  91   3                  }
+  92   2                  break;
+  93   2          }
+  94   1          
+  95   1              return 0;       // 无按键按下
+  96   1      }
+  97          
+  98          extern UI16 TraicConut;
+  99          extern UI08 Dig[1];
+ 100          
+ 101          /*****************************************************************************
+ 102          函数名称 : key_scan
+ 103          功能描述 : 扫描按键
+ 104          输入参数 : 无
+ 105          返回参数 : 无
+ 106          使用说明 : 无
+ 107          *****************************************************************************/
+ 108          void KeyProc(void)
+ 109          {
+ 110   1          static UI08 time_count = 0;
+ 111   1              u8  key;
+ 112   1          
+ 113   1      //    if(StartUpF)    return; // 开关开启和关闭时，按键无效
+ 114   1          
+ 115   1              key = KeyScan();
+C51 COMPILER V9.57.0.0   MANAGEKEY                                                         05/28/2020 16:49:20 PAGE 3   
+
+ 116   1              
+ 117   1          if(key == 0x00) return;
+ 118   1          
+ 119   1              switch(key)
+ 120   1              {        
+ 121   2                      // 开关
+ 122   2                      case 0X01:             
+ 123   2                  if(SwitchF) 
+ 124   2                  {
+ 125   3                      ClrSwitchF;
+ 126   3                      SetStartUpF;
+ 127   3      //                LED_ClrFlash(); // 停止闪烁
+ 128   3                  }
+ 129   2                  else
+ 130   2                  {
+ 131   3                      SetSwitchF;
+ 132   3                      SetStartUpF;
+ 133   3      //                LED_ClrFlash(); // 停止闪烁
+ 134   3                  }
+ 135   2                              break;
+ 136   2              
+ 137   2              // 长按按键
+ 138   2              case 0x11:
+ 139   2                  if(++time_count > 8)    // 3s
+ 140   2                  {
+ 141   3                      time_count = 0;
+ 142   3                      
+ 143   3      //              mcu_reset_wifi();  // 复位wifi
+ 144   3                      
+ 145   3                      if(!SlowFlashF)        
+ 146   3                      {
+ 147   4                          SetSlowFlashF;
+ 148   4                          ClrFastFlashF;
+ 149   4                          LED_SetFlash(0);    // 慢闪
+ 150   4                      }
+ 151   3                      else
+ 152   3                      {
+ 153   4                          SetFastFlashF;
+ 154   4                          ClrSlowFlashF;
+ 155   4                          LED_SetFlash(1);    // 快闪
+ 156   4                      }
+ 157   3                  }
+ 158   2                  break;
+ 159   2                      
+ 160   2                      // 降低亮度按键
+ 161   2                      case 2:
+ 162   2              case 0x12:      
+ 163   2                  if(!SwitchF) return;
+ 164   2                  if(Face.State != STEP_DIMMER && Face.State != STEP_NETWORK) return;
+ 165   2                  
+ 166   2                  SetDimmerKeyF;      // 标志正在进行调灯，3s后进入配网状态
+ 167   2                  Face.CtrlTim = 0;
+ 168   2              
+ 169   2                              if(Dimmer.FaceValue > (Dimmer.Step << 1))
+ 170   2                              {
+ 171   3                                      Dimmer.FaceValue -= Dimmer.Step;
+ 172   3                              }
+ 173   2                  else
+ 174   2                  {
+ 175   3                      Dimmer.FaceValue = Dimmer.Step;
+ 176   3                  }
+ 177   2                  break;
+C51 COMPILER V9.57.0.0   MANAGEKEY                                                         05/28/2020 16:49:20 PAGE 4   
+
+ 178   2                      
+ 179   2                      
+ 180   2              // 增加亮度按键
+ 181   2                      case 3:
+ 182   2                      case 0x13:
+ 183   2                  if(!SwitchF)    return;
+ 184   2                  if(Face.State != STEP_DIMMER && Face.State != STEP_NETWORK) return;
+ 185   2                  
+ 186   2                  SetDimmerKeyF;
+ 187   2                  Face.CtrlTim = 0;
+ 188   2              
+ 189   2                  if(Dimmer.FaceValue < (250 - Dimmer.Step))
+ 190   2                              {
+ 191   3                      Dimmer.FaceValue += Dimmer.Step;
+ 192   3                                      
+ 193   3                              }
+ 194   2                  else
+ 195   2                  {
+ 196   3                      Dimmer.FaceValue = 250;
+ 197   3                  } 
+ 198   2                              
+ 199   2                              break;
+ 200   2                      
+ 201   2              case 0xFF:
+ 202   2                  time_count = 0;
+ 203   2                  break;
+ 204   2              
+ 205   2                      default:
+ 206   2                              break;
+ 207   2                              
+ 208   2              }               
+ 209   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    557    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      5    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

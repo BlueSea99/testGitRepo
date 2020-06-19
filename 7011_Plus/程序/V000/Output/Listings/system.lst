@@ -1,0 +1,759 @@
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE SYSTEM
+OBJECT MODULE PLACED IN ..\Output\Objects\system.obj
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE ..\User\AppCode\WIFILayer\system.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..
+                    -\User\AppCode\AppLayer;..\User\AppCode\DriverLayer;..\User\AppCode\ManageLayer;..\User\AppCode\WIFILayer;..\User\SysCode
+                    -\Core) DEBUG OBJECTEXTEND PRINT(..\Output\Listings\system.lst) OBJECT(..\Output\Objects\system.obj)
+
+line level    source
+
+   1          /****************************************Copyright (c)*************************
+   2          **                               版权所有 (C), 2015-2020, 涂鸦科技
+   3          **
+   4          **                                 http://www.tuya.com
+   5          **
+   6          **--------------文件信息-------------------------------------------------------
+   7          **文   件   名: system.c
+   8          **描        述: wifi数据处理函数
+   9          **使 用 说 明 : 用户无需关心该文件实现内容
+  10          **
+  11          **
+  12          **--------------当前版本修订---------------------------------------------------
+  13          ** 版  本: v2.5.2
+  14          ** 日　期: 2019年7月5日
+  15          ** 描　述: 1:增加WiFi功能性测试（连接指定路由）
+  16                     2:简化流服务过程，用户只需要调用流服务传输接口即可使用流服务
+  17                     3:增加同步上报指令
+  18                     4:增加获取当前wifi联网状态指令
+  19                     5:增加获取格林时间指令
+  20                     6:优化ota升级流程，启动ota升级时用户可以选择传输包大小
+  21                     7:增加获取模块mac地址指令
+  22          
+  23          ** 版  本: v2.5.1
+  24          ** 日　期: 2018年10月27日
+  25          ** 描　述: 1:默认关闭流服务功能
+  26                     2:增加03协议wifi状态宏定义
+  27                             3:更新与修改部分函数注释
+  28          
+  29          ** 版  本: v2.5.0
+  30          ** 日　期: 2018年4月18日
+  31          ** 描　述: 1:协议版本改为0x03
+  32                     2:增加WIFI模组心跳关闭功能
+  33                     3:增加天气功能
+  34                             4:流服务功能
+  35          
+  36          ** 版  本: v2.3.8
+  37          ** 日　期: 2018年1月17日
+  38          ** 描　述: 1:变量添加volatile防止编译器优化
+  39                     2:添加#error提示
+  40          
+  41          ** 版  本: v2.3.7
+  42          ** 日　期: 2017年4月18日
+  43          ** 描　述: 1:优化串口队列接收处理
+  44                             
+  45          ** 版  本: v2.3.6
+  46          ** 日　期: 2016年7月21日
+  47          ** 描　述: 1:修复获取本地时间错误
+  48                     2:添加hex_to_bcd转换函数
+  49                             
+  50          ** 版  本: v2.3.5
+  51          ** 日　期: 2016年6月3日
+  52          ** 描　述: 1:修改返回协议版本为0x01
+  53                     2:固件升级数据偏移量修改为4字节
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 2   
+
+  54          
+  55          ** 版  本: v2.3.4
+  56          ** 日　期: 2016年5月26日
+  57          ** 描　述: 1:优化串口解析函数
+  58                     2:优化编译器兼容性,取消enum类型定义
+  59          
+  60          ** 版  本: v2.3.3
+  61          ** 日　期: 2016年5月24日
+  62          ** 描　述: 1:修改mcu获取本地时间函数
+  63                     2:添加wifi功能测试
+  64          
+  65          ** 版  本: v2.3.2
+  66          ** 日　期: 2016年4月23日
+  67          ** 描　述: 1:优化串口数据解析
+  68                     2:优化MCU固件升级流程
+  69                     3:优化上报流程
+  70          
+  71          ** 版  本: v2.3.1
+  72          ** 日　期: 2016年4月15日
+  73          ** 描　述: 1:优化串口数据解析
+  74          
+  75          ** 版  本: v2.3
+  76          ** 日　期: 2016年4月14日
+  77          ** 描　述: 1:支持MCU固件在线升级
+  78          
+  79          ** 版  本: v2.2
+  80          ** 日　期: 2016年4月11日
+  81          ** 描　述: 1:修改串口数据接收方式
+  82          
+  83          ** 版  本: v2.1
+  84          ** 日　期: 2016年4月8日
+  85          ** 描　述: 1:加入某些编译器不支持函数指针兼容选项
+  86          
+  87          ** 版  本: v2.0
+  88          ** 日　期: 2016年3月29日
+  89          ** 描　述: 1:优化代码结构
+  90                     2:节省RAM空间
+  91          **
+  92          **-----------------------------------------------------------------------------
+  93          ******************************************************************************/
+  94          #define SYSTEM_GLOBAL
+  95          
+  96          #include "wifi.h"
+  97          #include "protocol.h"
+  98          //
+  99          //
+ 100          extern const DOWNLOAD_CMD_S download_cmd[];
+ 101          unsigned short firm_size;                                                      //升级包一包的大小
+ 102          
+ 103          /*****************************************************************************
+ 104          函数名称 : set_wifi_uart_byte
+ 105          功能描述 : 写wifi_uart字节
+ 106          输入参数 : dest:缓存区其实地址;
+ 107                     byte:写入字节值
+ 108          返回参数 : 写入完成后的总长度
+ 109          *****************************************************************************/
+ 110          unsigned short set_wifi_uart_byte(unsigned short dest, unsigned char byte)
+ 111          {
+ 112   1        unsigned char *obj = (unsigned char *)wifi_uart_tx_buf + DATA_START + dest;
+ 113   1        
+ 114   1        *obj = byte;
+ 115   1        dest += 1;
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 3   
+
+ 116   1        
+ 117   1        return dest;
+ 118   1      }
+ 119          
+ 120          /*****************************************************************************
+ 121          函数名称 : set_wifi_uart_buffer
+ 122          功能描述 : 写wifi_uart_buffer
+ 123          输入参数 : dest:目标地址
+ 124                     src:源地址
+ 125                     len:数据长度
+ 126          返回参数 : 无
+ 127          *****************************************************************************/
+ 128          unsigned short set_wifi_uart_buffer(unsigned short dest, unsigned char *src, unsigned short len)
+ 129          {
+ 130   1        unsigned char *obj = (unsigned char *)wifi_uart_tx_buf + DATA_START + dest;
+ 131   1        
+ 132   1        my_memcpy(obj,src,len);
+ 133   1        
+ 134   1        dest += len;
+ 135   1        return dest;
+ 136   1      }
+ 137          
+ 138          /*****************************************************************************
+ 139          函数名称 : wifi_uart_write_data
+ 140          功能描述 : 向wifi uart写入连续数据
+ 141          输入参数 : in:发送缓存指针
+ 142                     len:数据发送长度
+ 143          返回参数 : 无
+ 144          *****************************************************************************/
+ 145          static void wifi_uart_write_data(unsigned char *in, unsigned short len)
+ 146          {
+ 147   1        if((NULL == in) || (0 == len))
+ 148   1        {
+ 149   2          return;
+ 150   2        }
+ 151   1        
+ 152   1        while(len --)
+ 153   1        {
+ 154   2          uart_transmit_output(*in);
+ 155   2          in ++;
+ 156   2        }
+ 157   1      }
+ 158          
+ 159          /*****************************************************************************
+ 160          函数名称 : get_check_sum
+ 161          功能描述 : 计算校验和
+ 162          输入参数 : pack:数据源指针
+ 163                     pack_len:计算校验和长度
+ 164          返回参数 : 校验和
+ 165          *****************************************************************************/
+ 166          unsigned char get_check_sum(unsigned char *pack, unsigned short pack_len)
+ 167          {
+ 168   1        unsigned short i;
+ 169   1        unsigned char check_sum = 0;
+ 170   1        
+ 171   1        for(i = 0; i < pack_len; i ++)
+ 172   1        {
+ 173   2          check_sum += *pack ++;
+ 174   2        }
+ 175   1        
+ 176   1        return check_sum;
+ 177   1      }
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 4   
+
+ 178          
+ 179          /*****************************************************************************
+ 180          函数名称 : wifi_uart_write_frame
+ 181          功能描述 : 向wifi串口发送一帧数据
+ 182          输入参数 : fr_type:帧类型
+ 183                     len:数据长度
+ 184          返回参数 : 无
+ 185          *****************************************************************************/
+ 186          void wifi_uart_write_frame(unsigned char fr_type, unsigned short len)
+ 187          {
+ 188   1        unsigned char check_sum = 0;
+ 189   1        
+ 190   1        wifi_uart_tx_buf[HEAD_FIRST] = 0x55;
+ 191   1        wifi_uart_tx_buf[HEAD_SECOND] = 0xaa;
+ 192   1        wifi_uart_tx_buf[PROTOCOL_VERSION] = 0x03;
+ 193   1        wifi_uart_tx_buf[FRAME_TYPE] = fr_type;
+ 194   1        wifi_uart_tx_buf[LENGTH_HIGH] = len >> 8;
+ 195   1        wifi_uart_tx_buf[LENGTH_LOW] = len & 0xff;
+ 196   1        
+ 197   1        len += PROTOCOL_HEAD;
+ 198   1        check_sum = get_check_sum((unsigned char *)wifi_uart_tx_buf, len - 1);
+ 199   1        wifi_uart_tx_buf[len - 1] = check_sum;
+ 200   1      
+ 201   1        wifi_uart_write_data((unsigned char *)wifi_uart_tx_buf, len);
+ 202   1      }
+ 203          
+ 204          /*****************************************************************************
+ 205          函数名称 : heat_beat_check
+ 206          功能描述 : 心跳包检测
+ 207          输入参数 : 无
+ 208          返回参数 : 无
+ 209          *****************************************************************************/
+ 210          static void heat_beat_check(void)
+ 211          {
+ 212   1        unsigned char length = 0;
+ 213   1        static unsigned char mcu_reset_state = FALSE;
+ 214   1        
+ 215   1        if(FALSE == mcu_reset_state)
+ 216   1        {
+ 217   2          length = set_wifi_uart_byte(length,FALSE);
+ 218   2          mcu_reset_state = TRUE;
+ 219   2        }
+ 220   1        else
+ 221   1        {
+ 222   2          length = set_wifi_uart_byte(length,TRUE);
+ 223   2        }
+ 224   1        
+ 225   1        wifi_uart_write_frame(HEAT_BEAT_CMD, length);
+ 226   1      }
+ 227          
+ 228          /*****************************************************************************
+ 229          函数名称  : product_info_update
+ 230          功能描述  : 产品信息上传
+ 231          输入参数 : 无
+ 232          返回参数 : 无
+ 233          *****************************************************************************/
+ 234          static void product_info_update(void)
+ 235          {
+ 236   1        unsigned char length = 0;
+ 237   1        
+ 238   1        length = set_wifi_uart_buffer(length, "{\"p\":\"", my_strlen("{\"p\":\""));
+ 239   1        length = set_wifi_uart_buffer(length,(unsigned char *)PRODUCT_KEY,my_strlen((unsigned char *)PRODUCT_KEY
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 5   
+
+             -));
+ 240   1        length = set_wifi_uart_buffer(length, "\",\"v\":\"", my_strlen("\",\"v\":\""));
+ 241   1        length = set_wifi_uart_buffer(length,(unsigned char *)MCU_VER,my_strlen((unsigned char *)MCU_VER));
+ 242   1        length = set_wifi_uart_buffer(length, "\",\"m\":", my_strlen("\",\"m\":"));
+ 243   1        length = set_wifi_uart_buffer(length, (unsigned char *)CONFIG_MODE, my_strlen((unsigned char *)CONFIG_MO
+             -DE));
+ 244   1        length = set_wifi_uart_buffer(length, "}", my_strlen("}"));
+ 245   1        
+ 246   1        wifi_uart_write_frame(PRODUCT_INFO_CMD, length);
+ 247   1      }
+ 248          
+ 249          /*****************************************************************************
+ 250          函数名称 : get_mcu_wifi_mode
+ 251          功能描述 : 查询mcu和wifi的工作模式
+ 252          输入参数 : 无
+ 253          返回参数 : 无
+ 254          *****************************************************************************/
+ 255          static void get_mcu_wifi_mode(void)
+ 256          {
+ 257   1        unsigned char length = 0;
+ 258   1        
+ 259   1      #ifdef WIFI_CONTROL_SELF_MODE                                                   //模块自处理
+                length = set_wifi_uart_byte(length, WF_STATE_KEY);    
+                length = set_wifi_uart_byte(length, WF_RESERT_KEY);   
+              #else                                                           
+ 263   1        //无需处理数据
+ 264   1      #endif
+ 265   1      
+ 266   1        wifi_uart_write_frame(WORK_MODE_CMD, length);
+ 267   1      }
+ 268          
+ 269          /*****************************************************************************
+ 270          函数名称 : get_update_dpid_index
+ 271          功能描述 : 获取制定DPID在数组中的序号
+ 272          输入参数 : dpid:dpid
+ 273          返回参数 : index:dp序号
+ 274          *****************************************************************************/
+ 275          static unsigned char get_dowmload_dpid_index(unsigned char dpid)
+ 276          {
+ 277   1        unsigned char index;
+ 278   1        unsigned char total = get_download_cmd_total();
+ 279   1        
+ 280   1        for(index = 0; index < total; index ++)
+ 281   1        {
+ 282   2          if(download_cmd[index].dp_id == dpid)
+ 283   2          {
+ 284   3            break;
+ 285   3          }
+ 286   2        }
+ 287   1        
+ 288   1        return index;
+ 289   1      }
+ 290          /*****************************************************************************
+ 291          函数名称 : data_point_handle
+ 292          功能描述 : 下发数据处理
+ 293          输入参数 : value:下发数据源指针
+ 294          返回参数 : ret:返回数据处理结果
+ 295          *****************************************************************************/
+ 296          static unsigned char data_point_handle(const unsigned char value[])
+ 297          {
+ 298   1        unsigned char dp_id,index;
+ 299   1        unsigned char dp_type;
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 6   
+
+ 300   1        unsigned char ret;
+ 301   1        unsigned short dp_len;
+ 302   1        
+ 303   1        dp_id = value[0];
+ 304   1        dp_type = value[1];
+ 305   1        dp_len = value[2] * 0x100;
+ 306   1        dp_len += value[3];
+ 307   1        
+ 308   1        index = get_dowmload_dpid_index(dp_id);
+ 309   1      
+ 310   1        if(dp_type != download_cmd[index].dp_type)
+ 311   1        {
+ 312   2          //错误提示
+ 313   2          return FALSE;
+ 314   2        }
+ 315   1        else
+ 316   1        {
+ 317   2          ret = dp_download_handle(dp_id,value + 4,dp_len);
+ 318   2        }
+ 319   1        
+ 320   1        return ret;
+ 321   1      }
+ 322          
+ 323          #ifdef WEATHER_ENABLE
+              /*****************************************************************************
+              函数名称 : data_point_handle
+              功能描述 : 下发数据处理
+              输入参数 : value:下发数据源指针
+              返回参数 : ret:返回数据处理结果
+              *****************************************************************************/
+              void mcu_open_weather(void)
+              {
+                int i = 0;
+                char temp[10], buffer[13] = "xw.xxxxxxxxxx";
+                char result[WEATHER_CHOOSE_CNT * 13 + 8];
+                int buf_len = 0, now_buf_len = 0, last_buf_len = 0;
+                int weather_len = 0;
+                unsigned char check_sum = 0;
+                
+                weather_len = sizeof(weather_choose);
+                weather_len = sizeof(weather_choose) / 10;
+                
+                for(i=0;i<weather_len;i++)
+                {
+                  my_memcpy(temp, weather_choose[i], strlen(weather_choose[i]));
+                  my_memcpy(buffer + 3, temp, strlen(weather_choose[i]));
+                  buffer[0] = strlen(weather_choose[i]) + 2;
+                  buf_len = strlen(weather_choose[i]) + 3;
+                  now_buf_len += buf_len;
+                  my_memcpy(result + DATA_START + last_buf_len, buffer, buf_len);
+                  last_buf_len = now_buf_len;
+                }
+                
+                result[HEAD_FIRST] = 0x55;
+                result[HEAD_SECOND] = 0xaa;
+                result[PROTOCOL_VERSION] = 0x03;
+                result[FRAME_TYPE] = 0x20;
+                result[LENGTH_HIGH] = now_buf_len >> 8;
+                result[LENGTH_LOW] = now_buf_len & 0xff;
+                
+                now_buf_len += PROTOCOL_HEAD;
+                check_sum = get_check_sum((unsigned char *)result, now_buf_len - 1);
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 7   
+
+                result[now_buf_len - 1] = check_sum;
+                
+                wifi_uart_write_data((unsigned char *)result, now_buf_len);
+              }
+              
+              /*****************************************************************************
+              函数名称 : weather_data_raw_handle
+              功能描述 : 天气数据解析
+              输入参数 : buffer:接收数据指针
+              返回参数 : 无
+              *****************************************************************************/
+              void weather_data_raw_handle(char *buffer)
+              {
+                char return_send_Weather[7] = { 0x55, 0xaa, 0x00, 0x21, 0x00, 0x00, 0x20 };
+                int length = buffer[LENGTH_HIGH] * 256 + buffer[LENGTH_LOW];
+                int i = 7;
+                int can_len = 0; 
+                char can[15] = "";
+                int type1 = 0;
+                char value_string[100] = "";
+                int val_cnt = 0;
+                int val_len = 0;
+                
+                if(buffer[DATA_START] != 1 || length < 1)
+                {
+                  //接收失败
+                }
+                else
+                {
+                  if(length < 4)
+                  {
+                    //数据为空
+                  }
+                  
+                  while (i < length + 7 - 1)
+                  {
+                    can_len = buffer[i];
+                    my_memset(can, '\0', 15);
+                    my_memcpy(can, buffer + i + 1, can_len);
+              
+                    type1 = buffer[i + 1 + can_len];
+                    if(type1 != 0 && type1 != 1)
+                    {
+                      return;
+                    }
+              
+                    my_memset(value_string, '\0', 100);
+                    val_cnt = i + 1 + can_len + 1 + 1 - 1;
+                    val_len = buffer[val_cnt];
+                    if (type1 == 0)
+                    {//int32
+                      weather_data_user_handle(can+2, type1, buffer+val_cnt+1);
+                    }
+                    else if(type1 == 1)
+                    {//string
+                      my_memcpy(value_string, buffer + val_cnt + 1, val_len);
+                      weather_data_user_handle(can+2, type1, value_string);
+                    }
+              
+                    i += 1 + can_len + 1 + val_len + 1;
+                  }
+                  
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 8   
+
+                  my_memcpy((unsigned char *)wifi_uart_tx_buf, return_send_Weather, 7);
+                  wifi_uart_write_data((unsigned char *)wifi_uart_tx_buf, 7);
+                }
+              }
+              #endif
+ 429          
+ 430          /*****************************************************************************
+ 431          函数名称 : data_handle
+ 432          功能描述 : 数据帧处理
+ 433          输入参数 : offset:数据起始位
+ 434          返回参数 : 无
+ 435          *****************************************************************************/
+ 436          void data_handle(unsigned short offset)
+ 437          {
+ 438   1      #ifdef SUPPORT_MCU_FIRM_UPDATE
+                  unsigned char *firmware_addr;
+                  static unsigned long firm_length;                                             //MCU升级文件长度
+                  static unsigned char firm_update_flag;                                        //MCU升级标志
+                  unsigned long dp_len;
+                  unsigned char firm_flag;                                                      //升级包大小标志
+              #else
+ 445   1          unsigned short dp_len;
+ 446   1      #endif
+ 447   1        
+ 448   1          unsigned char ret;
+ 449   1          unsigned short i,total_len;
+ 450   1          unsigned char cmd_type = wifi_uart_rx_buf[offset + FRAME_TYPE];
+ 451   1      
+ 452   1      #ifdef WEATHER_ENABLE
+                  static unsigned char isWoSend = 0;                    //是否已经打开过天气数据,0:是;1:否
+              #endif
+ 455   1      
+ 456   1      #ifdef WIFI_TEST_ENABLE
+ 457   1          unsigned char result;
+ 458   1          unsigned char rssi;
+ 459   1      #endif
+ 460   1        
+ 461   1          switch(cmd_type)
+ 462   1          {
+ 463   2              case HEAT_BEAT_CMD:             // 0 心跳包 (模组发送，MCU上报，成功则模组间隔15
+             -s发送一次)
+ 464   2                  heat_beat_check();
+ 465   2              break;
+ 466   2          
+ 467   2              case PRODUCT_INFO_CMD:          // 1 产品信息 (模组发送，MCU上报，PID号/mcu版本号/
+             -配网方式)
+ 468   2                  product_info_update();
+ 469   2                  break;
+ 470   2          
+ 471   2              case WORK_MODE_CMD:             // 2 查询MCU设定的模块工作模式 (？模组发送，MCU�
+             -�报)
+ 472   2                  get_mcu_wifi_mode();
+ 473   2                  break;
+ 474   2          
+ 475   2      #ifndef WIFI_CONTROL_SELF_MODE
+ 476   2              case WIFI_STATE_CMD:            // 3 报告wifi工作状态     
+ 477   2                  wifi_work_state = wifi_uart_rx_buf[offset + DATA_START];
+ 478   2                  wifi_uart_write_frame(WIFI_STATE_CMD,0);
+ 479   2        
+ 480   2      #ifdef WEATHER_ENABLE                   
+                      if(wifi_work_state == WIFI_CONNECTED && isWoSend == 0)   
+                      {
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 9   
+
+                        mcu_open_weather();
+                        isWoSend = 1;
+                      }
+              #endif
+ 487   2          break;
+ 488   2      
+ 489   2        case WIFI_RESET_CMD:                  // 4 重置wifi(wifi返回成功)
+ 490   2          reset_wifi_flag = RESET_WIFI_SUCCESS;
+ 491   2          break;
+ 492   2          
+ 493   2        case WIFI_MODE_CMD:                   // 5 选择smartconfig/AP模式(wifi返回成功)       
+ 494   2          set_wifimode_flag = SET_WIFICONFIG_SUCCESS;
+ 495   2          break;
+ 496   2      #endif
+ 497   2          
+ 498   2        case DATA_QUERT_CMD:                  // 6 广播 (模组发送，MCU上报，自定义的数据如亮�
+             -�，开关量)
+ 499   2          total_len = wifi_uart_rx_buf[offset + LENGTH_HIGH] * 0x100;
+ 500   2          total_len += wifi_uart_rx_buf[offset + LENGTH_LOW];
+ 501   2          
+ 502   2          for(i = 0;i < total_len;)
+ 503   2          {
+ 504   3            dp_len = wifi_uart_rx_buf[offset + DATA_START + i + 2] * 0x100;
+ 505   3            dp_len += wifi_uart_rx_buf[offset + DATA_START + i + 3];
+ 506   3      
+ 507   3            ret = data_point_handle((unsigned char *)wifi_uart_rx_buf + offset + DATA_START + i);
+ 508   3            
+ 509   3            if(SUCCESS == ret)
+ 510   3            {
+ 511   4              //成功提示
+ 512   4            }
+ 513   3            else
+ 514   3            {
+ 515   4              //错误提示
+ 516   4            }
+ 517   3            
+ 518   3            i += (dp_len + 4);
+ 519   3          }
+ 520   2          
+ 521   2          break;
+ 522   2          
+ 523   2        case STATE_QUERY_CMD:     // 8 状态查询
+ 524   2          all_data_update();                               
+ 525   2          break;
+ 526   2      
+ 527   2      #ifdef SUPPORT_MCU_FIRM_UPDATE
+                case UPDATE_START_CMD:    //升级开始
+                  //获取升级包大小全局变量
+                  firm_flag = PACKAGE_SIZE;
+                  if(firm_flag == 0) {
+                    firm_size = 256;
+                  }else if(firm_flag == 1) {
+                    firm_size = 512;
+                  }else if(firm_flag == 2) { 
+                    firm_size = 1024;
+                  }
+              
+                  firm_length = wifi_uart_rx_buf[offset + DATA_START];
+                  firm_length <<= 8;
+                  firm_length |= wifi_uart_rx_buf[offset + DATA_START + 1];
+                  firm_length <<= 8;
+                  firm_length |= wifi_uart_rx_buf[offset + DATA_START + 2];
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 10  
+
+                  firm_length <<= 8;
+                  firm_length |= wifi_uart_rx_buf[offset + DATA_START + 3];
+                  
+                  upgrade_package_choose(PACKAGE_SIZE);
+                  firm_update_flag = UPDATE_START_CMD;
+                   break;
+                  
+                case UPDATE_TRANS_CMD:    //升级传输
+                  if(firm_update_flag == UPDATE_START_CMD)
+                  {
+                    //停止一切数据上报
+                    stop_update_flag = ENABLE;
+                    
+                    total_len = wifi_uart_rx_buf[offset + LENGTH_HIGH] * 0x100;
+                    total_len += wifi_uart_rx_buf[offset + LENGTH_LOW];
+                    
+                    dp_len = wifi_uart_rx_buf[offset + DATA_START];
+                    dp_len <<= 8;
+                    dp_len |= wifi_uart_rx_buf[offset + DATA_START + 1];
+                    dp_len <<= 8;
+                    dp_len |= wifi_uart_rx_buf[offset + DATA_START + 2];
+                    dp_len <<= 8;
+                    dp_len |= wifi_uart_rx_buf[offset + DATA_START + 3];
+                    
+                    firmware_addr = (unsigned char *)wifi_uart_rx_buf;
+                    firmware_addr += (offset + DATA_START + 4);
+                    
+                    if((total_len == 4) && (dp_len == firm_length))
+                    {
+                      //最后一包
+                      ret = mcu_firm_update_handle(firmware_addr,dp_len,0);
+                      
+                      firm_update_flag = 0;
+                    }
+                    else if((total_len - 4) <= firm_size)
+                    {
+                      ret = mcu_firm_update_handle(firmware_addr,dp_len,total_len - 4);
+                    }
+                    else
+                    {
+                      firm_update_flag = 0;
+                      ret = ERROR;
+                    }
+                    
+                    if(ret == SUCCESS)
+                    {
+                      wifi_uart_write_frame(UPDATE_TRANS_CMD,0);
+                    }
+                    //恢复一切数据上报
+                    stop_update_flag = DISABLE;    
+                  }
+                  break;
+              #endif      
+ 597   2      
+ 598   2      #ifdef SUPPORT_GREEN_TIME
+                case GET_ONLINE_TIME_CMD:                              //获取格林时间
+                  mcu_get_greentime((unsigned char *)(wifi_uart_rx_buf + offset + DATA_START));
+                break;
+              #endif
+ 603   2      
+ 604   2      #ifdef SUPPORT_MCU_RTC_CHECK
+                case GET_LOCAL_TIME_CMD:                             //获取本地时间
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 11  
+
+                    mcu_write_rtctime((unsigned char *)(wifi_uart_rx_buf + offset + DATA_START));
+                  break;
+              #endif
+ 609   2       
+ 610   2      #ifdef WIFI_TEST_ENABLE
+ 611   2        case WIFI_TEST_CMD:                                   // 0x0e wifi功能测试（扫描指定路由）
+ 612   2          result = wifi_uart_rx_buf[offset + DATA_START];
+ 613   2          rssi = wifi_uart_rx_buf[offset + DATA_START + 1];
+ 614   2          wifi_test_result(result, rssi);
+ 615   2          break;
+ 616   2      #endif
+ 617   2      
+ 618   2      #ifdef WEATHER_ENABLE
+                case WEATHER_OPEN_CMD:
+                  weather_open_return_handle(wifi_uart_rx_buf[offset + DATA_START], wifi_uart_rx_buf[offset + DATA_START
+             - + 1]);
+                  
+                  break;
+                  
+                case WEATHER_DATA_CMD:
+                  weather_data_raw_handle((char*)wifi_uart_rx_buf + offset);
+                  break;
+              #endif
+ 628   2      
+ 629   2      #ifdef WIFI_STREAM_ENABLE
+                case STREAM_TRANS_CMD:
+                  stream_status = wifi_uart_rx_buf[offset + DATA_START];//流服务传输返回接收
+                  break;
+                
+              #endif
+ 635   2      
+ 636   2      #ifdef WIFI_CONNECT_TEST_ENABLE
+                    case WIFI_CONNECT_TEST_CMD:                           // wifi功能测试（连接指定路由）
+                      result = wifi_uart_rx_buf[offset + DATA_START];
+                      wifi_connect_test_result(result);
+                      break;
+              #endif
+ 642   2      
+ 643   2      #ifdef GET_MODULE_MAC_ENABLE
+                    case GET_MAC_CMD:                                     // 获取模块mac
+                      mcu_get_mac((unsigned char *)(wifi_uart_rx_buf + offset + DATA_START));
+                    break;
+              #endif
+ 648   2      
+ 649   2      #ifdef GET_WIFI_STATUS_ENABLE
+                    case GET_WIFI_STATUS_CMD:                             // 获取当前wifi联网状态
+                        wifi_work_state = wifi_uart_rx_buf[offset + DATA_START];
+                    break;
+              #endif
+ 654   2      
+ 655   2      #ifdef MCU_DP_UPLOAD_SYN
+                    case STATE_UPLOAD_SYN_RECV_CMD:                             //状态上报（同步）
+                      result = wifi_uart_rx_buf[offset + DATA_START];
+                      get_upload_syn_result(result);
+                    break;
+                    
+              #endif
+ 662   2          
+ 663   2        default:
+ 664   2          break;
+ 665   2        }
+ 666   1      }
+C51 COMPILER V9.57.0.0   SYSTEM                                                            06/01/2020 15:26:08 PAGE 12  
+
+ 667          
+ 668          /*****************************************************************************
+ 669          函数名称 : get_queue_total_data
+ 670          功能描述 : 读取队列内数据
+ 671          输入参数 : 无
+ 672          返回参数 : 无
+ 673          *****************************************************************************/
+ 674          unsigned char get_queue_total_data(void)
+ 675          {
+ 676   1        if(queue_in != queue_out)
+ 677   1          return 1;
+ 678   1        else
+ 679   1          return 0;
+ 680   1      }
+ 681          /*****************************************************************************
+ 682          函数名称 : Queue_Read_Byte
+ 683          功能描述 : 读取队列1字节数据
+ 684          输入参数 : 无
+ 685          返回参数 : 无
+ 686          *****************************************************************************/
+ 687          unsigned char Queue_Read_Byte(void)
+ 688          {
+ 689   1        unsigned char value;
+ 690   1        
+ 691   1        if(queue_out != queue_in)
+ 692   1        {
+ 693   2          //有数据
+ 694   2          if(queue_out >= (unsigned char *)(wifi_queue_buf + sizeof(wifi_queue_buf)))
+ 695   2          {
+ 696   3            //数据已经到末尾
+ 697   3            queue_out = (unsigned char *)(wifi_queue_buf);
+ 698   3          }
+ 699   2          
+ 700   2          value = *queue_out ++;   
+ 701   2        }
+ 702   1        
+ 703   1        return value;
+ 704   1      }
+ 705          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1407    ----
+   CONSTANT SIZE    =     49    ----
+   XDATA SIZE       =    122      40
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,91 @@
+C51 COMPILER V9.57.0.0   TIMER                                                             06/10/2020 11:34:15 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE TIMER
+OBJECT MODULE PLACED IN ..\Output\Objects\Timer.obj
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE ..\User\AppCode\DriverLayer\Timer.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(.
+                    -.\User\AppCode\AppLayer;..\User\AppCode\DriverLayer;..\User\AppCode\ManageLayer;..\User\AppCode\WIFILayer;..\User\SysCod
+                    -e\Core) DEBUG OBJECTEXTEND PRINT(..\Output\Listings\Timer.lst) OBJECT(..\Output\Objects\Timer.obj)
+
+line level    source
+
+   1          #include "Timer.h"
+   2          #include "GPIO.h"
+   3          #include "TypeDef.h"
+   4          #include "STC8.h"
+   5          #include "SysDataDef.h"
+   6          
+   7          UI08 TimeEventF = 0;
+   8          
+   9          /*****************************************************************************
+  10          函数名称 : Init_Timer0
+  11          功能描述 : timer0初始化
+  12          输入参数 : 无
+  13          返回参数 : 无
+  14          使用说明 : 
+  15          *****************************************************************************/
+  16          void Init_Timer0(void)  //250微秒@6.000MHz
+  17          {
+  18   1              AUXR &= 0x7F;           //定时器时钟12T模式
+  19   1              TMOD &= 0xF0;           //设置定时器模式
+  20   1              TL0 = 0x83;             //设置定时初值
+  21   1              TH0 = 0xFF;             //设置定时初值
+  22   1      
+  23   1              TF0 = 0;                //清除TF0标志
+  24   1              ET0 = 1;                //允许定时器0中断
+  25   1              TR0 = 1;                //定时器0开始计时
+  26   1      //      EA  = 1;
+  27   1      }
+  28          
+  29          void Init_Timer1(void)  //250微秒@6.000MHz
+  30          {
+  31   1              AUXR &= 0xBF;           //定时器时钟12T模式
+  32   1              TMOD &= 0x0F;           //设置定时器模式
+  33   1              TMOD |= 0x10;           //设置定时器模式
+  34   1      
+  35   1              TF1 = 0;                //清除TF1标志
+  36   1              ET1 = 1;                //允许定时器1中断
+  37   1      //      TR1 = 1;                //定时器1开始计时
+  38   1      //      EA  = 1;
+  39   1      }
+  40          
+  41          /*****************************************************************************
+  42          函数名称 : TM0_Routine
+  43          功能描述 : timer0中断处理函数
+  44          输入参数 : 无
+  45          返回参数 : 无
+  46          使用说明 : 
+  47          *****************************************************************************/
+  48          void TM0_Routine(void) interrupt TIMER0_VECTOR
+  49          {
+  50   1              TimeEventF = 1;
+  51   1      }
+  52          
+  53          /*****************************************************************************
+C51 COMPILER V9.57.0.0   TIMER                                                             06/10/2020 11:34:15 PAGE 2   
+
+  54          函数名称 : TM0_Routine
+  55          功能描述 : timer0中断处理函数
+  56          输入参数 : 无
+  57          返回参数 : 无
+  58          使用说明 : 
+  59          *****************************************************************************/
+  60          void TM1_Routine(void) interrupt TIMER1_VECTOR
+  61          {
+  62   1          SetPwmF;
+  63   1              TR1 = 0;
+  64   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     76    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      1    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

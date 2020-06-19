@@ -1,0 +1,89 @@
+C51 COMPILER V9.57.0.0   MAIN                                                              06/19/2020 11:26:22 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN ..\Output\Objects\Main.obj
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE ..\User\AppCode\AppLayer\Main.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Us
+                    -er\AppCode\AppLayer;..\User\AppCode\DriverLayer;..\User\AppCode\ManageLayer;..\User\AppCode\WIFILayer;..\User\SysCode\Co
+                    -re) DEBUG OBJECTEXTEND PRINT(..\Output\Listings\Main.lst) OBJECT(..\Output\Objects\Main.obj)
+
+line level    source
+
+   1          /*****************************Copyright (c)************************************
+   2          **
+   3          **------------------------------------------------------------------------------
+   4          *******************************************************************************/
+   5          /*-------------------------------    -------------------------------------*/
+   6          
+   7          #include "TaskProc.h"
+   8          #include "Gpio.h"
+   9          #include "Timer.h"
+  10          #include "Rcc.h"
+  11          #include "SysDataDef.h"
+  12          #include "Usart.h"
+  13          #include "Panel.h"
+  14          #include "wifi.h"
+  15          
+  16          
+  17          void Init_Device(void)
+  18          {
+  19   1          CloseSwitchP;   // 关闭继电器
+  20   1          ClrPwmF;        // 关闭Pwm波
+  21   1          SetDispVccP;   // 数码管显示
+  22   1      
+  23   1      }
+  24          
+  25          void Init_Para(void)
+  26          {
+  27   1          extern bit wifi_heart_close;
+  28   1          
+  29   1          Face.State = 0;
+  30   1          Dig[0] = 20;        // 上电默认“0”
+  31   1          wifi_heart_close = ENABLE;
+  32   1      }
+  33          
+  34          void main(void)
+  35          {
+  36   1          Init_Rcc();
+  37   1          Init_GPIO();
+  38   1          Init_Device();
+  39   1          Init_PanelFlash();
+*** WARNING C206 IN LINE 39 OF ..\User\AppCode\AppLayer\Main.c: 'Init_PanelFlash': missing function-prototype
+  40   1          Init_Para();
+  41   1          Uart2Init();
+  42   1          Init_Int0();
+*** WARNING C206 IN LINE 42 OF ..\User\AppCode\AppLayer\Main.c: 'Init_Int0': missing function-prototype
+  43   1          Init_Timer0();
+*** WARNING C206 IN LINE 43 OF ..\User\AppCode\AppLayer\Main.c: 'Init_Timer0': missing function-prototype
+  44   1          Init_Timer1();
+*** WARNING C206 IN LINE 44 OF ..\User\AppCode\AppLayer\Main.c: 'Init_Timer1': missing function-prototype
+  45   1          wifi_protocol_init();
+  46   1          
+  47   1          EA = 1;                 //允许总中断
+  48   1      
+  49   1      //  mcu_reset_wifi();  // 复位wifi
+C51 COMPILER V9.57.0.0   MAIN                                                              06/19/2020 11:26:22 PAGE 2   
+
+  50   1      
+  51   1          while(1)
+  52   1          { 
+  53   2              TimeEvent();
+  54   2          }
+  55   1      }
+  56          
+  57          
+  58          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     65    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  4 WARNING(S),  0 ERROR(S)

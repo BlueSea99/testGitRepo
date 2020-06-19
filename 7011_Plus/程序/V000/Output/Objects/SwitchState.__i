@@ -1,0 +1,1 @@
+"..\User\AppCode\ManageLayer\SwitchState.c" LARGE OPTIMIZE (8,SPEED) BROWSE INCDIR(..\User\AppCode\AppLayer;..\User\AppCode\DriverLayer;..\User\AppCode\ManageLayer;..\User\AppCode\WIFILayer;..\User\SysCode\Core) DEBUG OBJECTEXTEND PRINT(..\Output\Listings\SwitchState.lst) OBJECT(..\Output\Objects\SwitchState.obj)

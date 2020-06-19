@@ -1,0 +1,186 @@
+C51 COMPILER V9.57.0.0   WIFIPROC                                                          06/09/2020 17:10:01 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE WIFIPROC
+OBJECT MODULE PLACED IN ..\Output\Objects\WifiProc.obj
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE ..\User\AppCode\ManageLayer\WifiProc.c LARGE OPTIMIZE(8,SPEED) BROWSE INCDI
+                    -R(..\User\AppCode\AppLayer;..\User\AppCode\DriverLayer;..\User\AppCode\ManageLayer;..\User\AppCode\WIFILayer;..\User\Sys
+                    -Code\Core) DEBUG OBJECTEXTEND PRINT(..\Output\Listings\WifiProc.lst) OBJECT(..\Output\Objects\WifiProc.obj)
+
+line level    source
+
+   1          #include "WifiProc.h"
+   2          #include "TypeDef.h"
+   3          #include "wifi.h"
+   4          #include "SysDataDef.h"
+   5          
+   6          
+   7          void WifiProc(void)
+   8          {
+   9   1          static UI08 self_lock_flag = 0;
+  10   1          static UI08 reset_time = 0;
+  11   1          UI08 wifi_state = 0;
+  12   1          
+  13   1          wifi_state = mcu_get_wifi_work_state();  // 获取Wifi状态
+  14   1          
+  15   1      //    if(wifi_state != SMART_CONFIG_STATE && !self_lock_flag) 
+  16   1      //    {
+  17   1      //        self_lock_flag = 1;
+  18   1      //        mcu_set_wifi_mode(SMART_CONFIG);    // 设置默认状态
+  19   1      //    }
+  20   1          
+  21   1          switch(wifi_state)
+  22   1          {
+  23   2              // smartconfig 配置状态  8 快闪
+  24   2              case SMART_CONFIG_STATE:
+  25   2                  ClrNetSuccessF;
+  26   2                  SetFastFlashF;
+  27   2                  ClrSlowFlashF;
+  28   2                  break;
+  29   2              
+  30   2              // AP 配置状态 A 慢闪
+  31   2              case AP_STATE: 
+  32   2                  ClrNetSuccessF;
+  33   2                  SetSlowFlashF;
+  34   2                  ClrFastFlashF;
+  35   2                  break;
+  36   2              
+  37   2              // WIFI已配置但未连接到路由器 - 慢闪
+  38   2              case WIFI_NOT_CONNECTED:
+  39   2                  ClrNetSuccessF;
+  40   2                  SetSlowFlashF;
+  41   2                  ClrFastFlashF;
+  42   2                  break;
+  43   2              
+  44   2              // WIFI已配置且连上路由器
+  45   2              case WIFI_CONNECTED: 
+  46   2              // WIFI已连上路由器且连接到云端            
+  47   2              case WIFI_CONN_CLOUD:       
+  48   2                  SetNetSuccessF;
+  49   2                  ClrSlowFlashF;
+  50   2                  ClrFastFlashF;
+  51   2                  break;
+  52   2              
+  53   2              // 低功耗模式
+C51 COMPILER V9.57.0.0   WIFIPROC                                                          06/09/2020 17:10:01 PAGE 2   
+
+  54   2              case WIFI_LOW_POWER:        
+  55   2                  break;
+  56   2              
+  57   2              case WIFI_SATE_UNKNOW:
+  58   2                  if(++reset_time > 60)   // 6s 复位一次
+  59   2                  {
+  60   3                      reset_time = 0;
+  61   3                      ClrNetSuccessF;
+  62   3                      mcu_reset_wifi();  // 复位wifi
+  63   3                  }
+  64   2                  break;
+  65   2      
+  66   2              default:
+  67   2                  wifi_state = WIFI_SATE_UNKNOW;
+  68   2                  break;
+  69   2          }
+  70   1      }
+*** WARNING C280 IN LINE 9 OF ..\User\AppCode\ManageLayer\WifiProc.c: 'self_lock_flag': unreferenced local variable
+  71          
+  72          
+  73          void UpdateDpValue(void)
+  74          {
+  75   1          UI08 switch_value = 0;
+  76   1          UI16 bright_value = 0;
+  77   1          
+  78   1          if(DpSwitchF)
+  79   1          {
+  80   2              ClrDpSwitchF;
+  81   2              
+  82   2              switch_value = SwitchF ? 1 : 0;
+  83   2              mcu_dp_bool_update(DPID_LED_SWITCH,switch_value);
+  84   2          }
+  85   1          
+  86   1          if(DpBrightF)
+  87   1          {
+  88   2              ClrDpBrightF;
+  89   2              
+  90   2              bright_value = ((Dimmer.FaceValue * 3) >> 1);
+  91   2              
+  92   2              if(bright_value > 255)
+  93   2              {
+  94   3                  bright_value = 255;
+  95   3              }
+  96   2              
+  97   2              mcu_dp_value_update(DPID_BRIGHT_VALUE,bright_value);
+  98   2          }
+  99   1      }
+ 100          
+ 101          void WifiTest(void)
+ 102          {
+ 103   1          static UI16 show_value = 0;
+ 104   1          static UI08 i = 0;
+ 105   1          
+ 106   1          if(!WifiTestF)  return;
+ 107   1          
+ 108   1          switch(i)
+ 109   1          {
+ 110   2              case 0:
+ 111   2                  SetPwmF;
+ 112   2                  OpenSwitchP;            // 开 500ms
+ 113   2                  i++;
+ 114   2                  break;
+C51 COMPILER V9.57.0.0   WIFIPROC                                                          06/09/2020 17:10:01 PAGE 3   
+
+ 115   2              
+ 116   2              case 1:
+ 117   2                  if(++show_value > 50)   // 关 500ms
+ 118   2                  {
+ 119   3                      CloseSwitchP;
+ 120   3                      
+ 121   3                      show_value = 0;
+ 122   3                      i++;
+ 123   3                  }
+ 124   2                  break;
+ 125   2                  
+ 126   2              case 2:
+ 127   2                  if(++show_value > 50)   // 开 500ms
+ 128   2                  {
+ 129   3                      OpenSwitchP;
+ 130   3                      
+ 131   3                      show_value = 0;
+ 132   3                      i++;
+ 133   3                  }
+ 134   2                  break;
+ 135   2                  
+ 136   2              case 3:
+ 137   2                  if(++show_value > 50)   // 关 500ms
+ 138   2                  {
+ 139   3                      CloseSwitchP;                
+ 140   3      
+ 141   3      //                ClrWifiTestF;
+ 142   3                      show_value = 0;
+ 143   3                      i = 0;
+ 144   3                  }
+ 145   2                  break;
+ 146   2                  
+ 147   2              case 4:
+ 148   2                  break;
+ 149   2          }
+ 150   1      }
+ 151          
+ 152          //void WaveTiggerProc(void)
+ 153          //{
+ 154          //    if(!ClrPwmF)     
+ 155          //    ClrPwmF;
+ 156          //}
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    381    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      5       3
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

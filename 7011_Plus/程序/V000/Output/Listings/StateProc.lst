@@ -1,0 +1,458 @@
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE STATEPROC
+OBJECT MODULE PLACED IN ..\Output\Objects\StateProc.obj
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE ..\User\AppCode\ManageLayer\StateProc.c LARGE OPTIMIZE(8,SPEED) BROWSE INCD
+                    -IR(..\User\AppCode\AppLayer;..\User\AppCode\DriverLayer;..\User\AppCode\ManageLayer;..\User\AppCode\WIFILayer;..\User\Sy
+                    -sCode\Core) DEBUG OBJECTEXTEND PRINT(..\Output\Listings\StateProc.lst) OBJECT(..\Output\Objects\StateProc.obj)
+
+line level    source
+
+   1          #include "StateProc.h"
+   2          #include "Typedef.h"
+   3          #include "SysDataDef.h"
+   4          #include "wifi.h"
+   5          #include "LedProc.h"
+   6          #include "Gpio.h"
+   7          
+   8          void ManageAdjust(void)
+   9          {
+  10   1              switch(Face.State)
+  11   1          {
+  12   2              case STEP_LOWPOWER:
+  13   2                  
+  14   2                  if(SwitchF || !NetSuccessF)
+  15   2                  {
+  16   3                      Face.CtrlTim = 0;
+  17   3                      Face.State = STEP_IDLE;
+  18   3                      SetDispVccP;                
+  19   3                  }
+  20   2                  break;
+  21   2                  
+  22   2              case STEP_IDLE:
+  23   2                  
+  24   2                  Dig[0] = 20;                // 显示 “0”
+  25   2      
+  26   2                  if(!NetSuccessF)            // 如果配网不成功，3s后进入配网状态
+  27   2                  {
+  28   3                      if(++Face.CtrlTim > 3000)
+  29   3                      {   
+  30   4                          SetDispVccP;
+  31   4                          ClrDimmerKeyF;
+  32   4                          Face.CtrlTim = 0;
+  33   4                          Face.State = STEP_NETWORK;
+  34   4                      }
+  35   3                  }
+  36   2                  else
+  37   2                  {
+  38   3                      if(++Face.CtrlTim > 3000)
+  39   3                      {
+  40   4                          ClrDispVccP; 
+  41   4                          Face.State = STEP_LOWPOWER; 
+  42   4                      }
+  43   3                  }
+  44   2                      
+  45   2                  if(SwitchF)
+  46   2                  {
+  47   3                      Face.CtrlTim = 0;
+  48   3                      Face.State = STEP_OPENDRELAY;
+  49   3                      SetDispVccP;
+  50   3                      
+  51   3                      if(NetSuccessF)
+  52   3                      {
+  53   4                          SetDpBrightF;   // 上报Dp值
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 2   
+
+  54   4                      }
+  55   3                      
+  56   3                  }
+  57   2                  break;
+  58   2              
+  59   2              case STEP_OPENDRELAY:
+  60   2                  OpenSwitchP;
+  61   2                  Dig[0] = 20;                      // 显示 “0”
+  62   2              
+  63   2                  Face.CtrlTim++;
+  64   2      
+  65   2                  if(Face.CtrlTim == 500)           // 延时，防止继电器打开时灯闪烁
+  66   2                  {
+  67   3                      SetPwmTriggerF;
+  68   3                  }
+  69   2                  else if(Face.CtrlTim == 700)     // 启动时，稳住下最小暗度
+  70   2                  {
+  71   3                      Face.CtrlTim = 0;
+  72   3                      Dimmer.TmepValue = LightValTab[2]; //控制启动时开始电压
+  73   3                      Face.State = STEP_ADDBRIGHT;
+  74   3                  }
+  75   2                  break;
+  76   2                  
+  77   2              case STEP_ADDBRIGHT:
+  78   2                  if(Dimmer.TmepValue < Dimmer.FaceValue)
+  79   2                  {
+  80   3                      if(Dimmer.TmepValue > LightValTab[8])
+  81   3                      {
+  82   4                          if(++Face.CtrlTim > 20)
+  83   4                          {
+  84   5                              Face.CtrlTim = 0;
+  85   5                              Dimmer.TmepValue ++;
+  86   5                              Dig[0] = LedShowTrans(Dimmer.TmepValue);
+  87   5                          }
+  88   4                      }
+  89   3                      else 
+  90   3                      {
+  91   4                          if(++Face.CtrlTim > 25)     // 控制启动灯亮度增加速率
+  92   4                          {
+  93   5                              Face.CtrlTim = 0;
+  94   5                              Dimmer.TmepValue ++;
+  95   5                              Dig[0] = LedShowTrans(Dimmer.TmepValue);
+  96   5                          }
+  97   4                      }
+  98   3                  }
+  99   2                  else
+ 100   2                  {
+ 101   3                      Face.CtrlTim = 0;
+ 102   3                      Face.State = STEP_DIMMER;
+ 103   3                      ClrStartUpF;                // 清除启动标志
+ 104   3                  }
+ 105   2                  break;
+ 106   2              
+ 107   2              case STEP_DIMMER:
+ 108   2                  
+ 109   2                  Dig[0] = LedShowTrans(Dimmer.FaceValue);
+ 110   2                  
+ 111   2                  if(Dimmer.TmepValue > Dimmer.FaceValue)
+ 112   2                  {
+ 113   3                      if(++Face.CtrlTim > 25)     // 控制灯熄灭的速率
+ 114   3                      {
+ 115   4                          Face.CtrlTim = 0;
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 3   
+
+ 116   4                          Dimmer.TmepValue--;
+ 117   4                      }
+ 118   3                  }
+ 119   2                  else if(Dimmer.TmepValue < Dimmer.FaceValue)
+ 120   2                  {
+ 121   3                      if(++Face.CtrlTim > 25)     // 控制灯熄灭的速率
+ 122   3                      {
+ 123   4                          Face.CtrlTim = 0;
+ 124   4                          Dimmer.TmepValue++;
+ 125   4                      }
+ 126   3                  }
+ 127   2                  
+ 128   2                  if(!NetSuccessF)    // 如果配网不成功，3s进入配网状态
+ 129   2                  {
+ 130   3                      Face.CtrlTim++;
+ 131   3                      if(Face.CtrlTim > 3000)
+ 132   3                      {
+ 133   4                          Face.CtrlTim = 0;
+ 134   4                          ClrDimmerKeyF;
+ 135   4                          
+ 136   4                          Face.State = STEP_NETWORK;
+ 137   4                      }
+ 138   3                  }
+ 139   2                  
+ 140   2                  if(!SwitchF)
+ 141   2                  {
+ 142   3                      Face.CtrlTim = 0;
+ 143   3                      Face.State = STEP_FALLBRIGHT;
+ 144   3                  }
+ 145   2                  break;
+ 146   2              
+ 147   2              case STEP_NETWORK:
+ 148   2                  SetAllFlashF;
+ 149   2              
+ 150   2                  if(wifi_work_state == SMART_CONFIG_STATE)    // 快闪 250ms
+ 151   2                  {
+ 152   3                      Dig[0] = 8;         // 8
+ 153   3                      LED_SetFlash(1);    // 快闪
+ 154   3      
+ 155   3                  }
+ 156   2                  else if(wifi_work_state == AP_STATE)         // 慢闪 1500ms
+ 157   2                  {
+ 158   3                      Dig[0] = 11;        // A
+ 159   3                      LED_SetFlash(0);    // 慢闪
+ 160   3                  }
+ 161   2                  else if(wifi_work_state == WIFI_NOT_CONNECTED)   // 慢闪 “-” 1500ms 
+ 162   2                  {
+ 163   3                      Dig[0] = 21;        // -
+ 164   3                      LED_SetFlash(0);    // 慢闪
+ 165   3                  }
+ 166   2                  
+ 167   2                  if(StartUpF)            // 配网状态进入启动状态
+ 168   2                  {
+ 169   3                      if(SwitchF)
+ 170   3                      {
+ 171   4                          Face.State = STEP_OPENDRELAY;
+ 172   4                      }
+ 173   3                      else
+ 174   3                      {
+ 175   4                          Face.State = STEP_FALLBRIGHT;
+ 176   4                      }
+ 177   3                      ClrAllFlashF;
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 4   
+
+ 178   3                      Face.CtrlTim = 0;
+ 179   3                  }
+ 180   2                  
+ 181   2                  if(DimmerKeyF)          // 如果调光按键按下，回到调光状态
+ 182   2                  {
+ 183   3                      ClrAllFlashF;
+ 184   3                      Face.CtrlTim = 0;
+ 185   3                      Face.State = STEP_DIMMER; 
+ 186   3                  }
+ 187   2                  
+ 188   2                  if(NetSuccessF)
+ 189   2                  {
+ 190   3                      ClrAllFlashF;
+ 191   3                      Dig[0] = 17;        // 显示 ‘L’
+ 192   3                      if(++Face.CtrlTim > 4000)
+ 193   3                      {
+ 194   4                          Face.CtrlTim = 0;
+ 195   4                          Face.State = SwitchF ? STEP_DIMMER : STEP_IDLE; 
+ 196   4                      }
+ 197   3                  }
+ 198   2                  break;
+ 199   2      
+ 200   2              case STEP_FALLBRIGHT:
+ 201   2                  if(Dimmer.TmepValue > LightValTab[8])
+ 202   2                  {
+ 203   3                      if(++Face.CtrlTim > 5)     // 控制灯熄灭的速率
+ 204   3                      {
+ 205   4                          Face.CtrlTim = 0;
+ 206   4                          
+ 207   4                          Dimmer.TmepValue --;
+ 208   4                          Dig[0] = LedShowTrans(Dimmer.TmepValue);
+ 209   4                      }
+ 210   3                  }
+ 211   2                  else if(Dimmer.TmepValue > LightValTab[4])
+ 212   2                  {
+ 213   3                      if(++Face.CtrlTim > 20)     // 控制灯熄灭的速率
+ 214   3                      {
+ 215   4                          Face.CtrlTim = 0;
+ 216   4                          
+ 217   4                          Dimmer.TmepValue --;
+ 218   4                          Dig[0] = LedShowTrans(Dimmer.TmepValue);
+ 219   4                      }
+ 220   3                  }
+ 221   2                  else if(Dimmer.TmepValue > LightValTab[2])
+ 222   2                  {
+ 223   3                      if(++Face.CtrlTim > 30)     // 控制灯熄灭的速率
+ 224   3                      {
+ 225   4                          Face.CtrlTim = 0;
+ 226   4                          
+ 227   4                          Dimmer.TmepValue --;
+ 228   4                          Dig[0] = LedShowTrans(Dimmer.TmepValue);
+ 229   4                      }
+ 230   3                  }
+ 231   2                  else
+ 232   2                  {
+ 233   3                      if(++Face.CtrlTim > 200)        // 调到最暗时稳住
+ 234   3                      {
+ 235   4                          ClrPwmF;                
+ 236   4                          ClrPwmTriggerF;
+ 237   4                          Face.CtrlTim = 0;
+ 238   4                          Face.State = STEP_CLOSERELAY;
+ 239   4                      }
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 5   
+
+ 240   3                  }
+ 241   2                  break;
+ 242   2                  
+ 243   2              case STEP_CLOSERELAY:
+ 244   2                  if(++Face.CtrlTim > 500)
+ 245   2                  {
+ 246   3                      Dig[0] = 20;
+ 247   3                      CloseSwitchP;
+ 248   3                      Face.CtrlTim = 0;
+ 249   3                      Face.State = STEP_IDLE;
+ 250   3                      ClrStartUpF;                
+ 251   3                  }
+ 252   2                  break;
+ 253   2                  
+ 254   2              default:
+ 255   2                  Face.CtrlTim = 0;
+ 256   2                  Face.State = STEP_IDLE;
+ 257   2                  break;
+ 258   2          }
+ 259   1      }
+ 260          
+ 261          void ManageNoAdjust(void)
+ 262          {
+ 263   1              switch(Face.State)
+ 264   1          {
+ 265   2              case STEP_LOWPOWER:
+ 266   2                  
+ 267   2                  if(SwitchF || !NetSuccessF)
+ 268   2                  {
+ 269   3                      Face.CtrlTim = 0;
+ 270   3                      Face.State = STEP_IDLE;
+ 271   3                      SetDispVccP;                
+ 272   3                  }
+ 273   2                  break;
+ 274   2                  
+ 275   2              case STEP_IDLE:
+ 276   2                  
+ 277   2                  Dig[0] = 20;                // 显示 “0”
+ 278   2      
+ 279   2                  if(!NetSuccessF)            // 如果配网不成功，3s后进入配网状态
+ 280   2                  {
+ 281   3                      if(++Face.CtrlTim > 3000)
+ 282   3                      {   
+ 283   4                          SetDispVccP;
+ 284   4                          ClrDimmerKeyF;
+ 285   4                          Face.CtrlTim = 0;
+ 286   4                          Face.State = STEP_NETWORK;
+ 287   4                      }
+ 288   3                  }
+ 289   2                  else
+ 290   2                  {
+ 291   3                      if(++Face.CtrlTim > 3000)
+ 292   3                      {
+ 293   4                          ClrDispVccP; 
+ 294   4                          Face.State = STEP_LOWPOWER; 
+ 295   4                      }
+ 296   3                  }
+ 297   2                      
+ 298   2                  if(SwitchF)
+ 299   2                  {
+ 300   3                      Face.CtrlTim = 0;
+ 301   3                      Face.State = STEP_OPENDRELAY;
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 6   
+
+ 302   3                      SetDispVccP;
+ 303   3                      
+ 304   3                      Dimmer.TmepValue = LightValTab[9];
+ 305   3                      
+ 306   3                      if(NetSuccessF)
+ 307   3                      {
+ 308   4                          SetDpBrightF;   // 上报Dp值
+ 309   4                      }
+ 310   3                      
+ 311   3                  }
+ 312   2                  break;
+ 313   2                  
+ 314   2              case STEP_OPENDRELAY:
+ 315   2                  OpenSwitchP;
+ 316   2                  Dig[0] = 20;                      // 显示 “0”
+ 317   2              
+ 318   2                  Face.CtrlTim++;
+ 319   2      
+ 320   2                  if(Face.CtrlTim == 500)           // 延时，防止继电器打开时灯闪烁
+ 321   2                  {
+ 322   3                      SetPwmTriggerF;
+ 323   3                      Dimmer.TmepValue = LightValTab[9]; //控制启动时开始电压
+ 324   3                      Dimmer.FaceValue = LightValTab[9];
+ 325   3                      Face.State = STEP_DIMMER;
+ 326   3                  }
+ 327   2                  break;
+ 328   2                  
+ 329   2              case STEP_DIMMER:
+ 330   2                  
+ 331   2                  Dig[0] = LedShowTrans(Dimmer.FaceValue);
+ 332   2                  
+ 333   2                  if(!NetSuccessF)    // 如果配网不成功，3s进入配网状态
+ 334   2                  {
+ 335   3                      Face.CtrlTim++;
+ 336   3                      if(Face.CtrlTim > 3000)
+ 337   3                      {
+ 338   4                          Face.CtrlTim = 0;
+ 339   4                          ClrDimmerKeyF;
+ 340   4                          
+ 341   4                          Face.State = STEP_NETWORK;
+ 342   4                      }
+ 343   3                  }
+ 344   2                  
+ 345   2                  if(!SwitchF)
+ 346   2                  {
+ 347   3                      Face.CtrlTim = 0;
+ 348   3                      Face.State = STEP_FALLBRIGHT;
+ 349   3                  }
+ 350   2                  break;
+ 351   2              
+ 352   2              case STEP_NETWORK:
+ 353   2                  SetAllFlashF;
+ 354   2              
+ 355   2                  if(wifi_work_state == SMART_CONFIG_STATE)    // 快闪 250ms
+ 356   2                  {
+ 357   3                      Dig[0] = 8;         // 8
+ 358   3                      LED_SetFlash(1);    // 快闪
+ 359   3      
+ 360   3                  }
+ 361   2                  else if(wifi_work_state == AP_STATE)         // 慢闪 1500ms
+ 362   2                  {
+ 363   3                      Dig[0] = 11;        // A
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 7   
+
+ 364   3                      LED_SetFlash(0);    // 慢闪
+ 365   3                  }
+ 366   2                  else if(wifi_work_state == WIFI_NOT_CONNECTED)   // 慢闪 “-” 1500ms 
+ 367   2                  {
+ 368   3                      Dig[0] = 21;        // -
+ 369   3                      LED_SetFlash(0);    // 慢闪
+ 370   3                  }
+ 371   2      
+ 372   2                  if(DimmerKeyF)          // 如果调光按键按下，回到调光状态
+ 373   2                  {
+ 374   3                      ClrAllFlashF;
+ 375   3                      Face.CtrlTim = 0;
+ 376   3                      Face.State = STEP_DIMMER; 
+ 377   3                  }
+ 378   2                  
+ 379   2                  if(NetSuccessF)
+ 380   2                  {
+ 381   3                      ClrAllFlashF;
+ 382   3                      Dig[0] = 17;        // 显示 ‘L’
+ 383   3                      if(++Face.CtrlTim > 4000)
+ 384   3                      {
+ 385   4                          Face.CtrlTim = 0;
+ 386   4                          Face.State = SwitchF ? STEP_DIMMER : STEP_IDLE; 
+ 387   4                      }
+ 388   3                  }
+ 389   2                  break;
+ 390   2                  
+ 391   2              case STEP_CLOSERELAY:
+ 392   2                  if(++Face.CtrlTim > 500)
+ 393   2                  {
+ 394   3                      Dig[0] = 20;
+ 395   3                      CloseSwitchP;
+ 396   3                      Face.CtrlTim = 0;
+ 397   3                      Face.State = STEP_IDLE;
+ 398   3                      ClrStartUpF;                
+ 399   3                  }
+ 400   2                  break;
+ 401   2                  
+ 402   2              default:
+ 403   2                  Face.CtrlTim = 0;
+ 404   2                  Face.State = STEP_IDLE;
+ 405   2                  break;
+ 406   2          }   
+ 407   1      }
+ 408          
+ 409          void StateProc(void)
+ 410          {
+ 411   1          if(AdjustLightF)
+ 412   1          {
+ 413   2             ManageAdjust(); 
+ 414   2          }
+ 415   1          else
+ 416   1          {
+ 417   2             ManageNoAdjust(); 
+ 418   2          }
+ 419   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1770    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+C51 COMPILER V9.57.0.0   STATEPROC                                                         06/09/2020 17:10:26 PAGE 8   
+
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
