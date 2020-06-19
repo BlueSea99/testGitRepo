@@ -14,6 +14,7 @@
 #include "wifi.h"
 
 
+
 void Init_Device(void)
 {
     CloseSwitchP;   // 关闭继电器
@@ -21,6 +22,7 @@ void Init_Device(void)
     SetDispVccP;   // 数码管显示
 
 }
+
 
 void Init_Para(void)
 {
@@ -30,6 +32,7 @@ void Init_Para(void)
     Dig[0] = 20;        // 上电默认“0”
     wifi_heart_close = ENABLE;
 }
+
 
 void main(void)
 {
