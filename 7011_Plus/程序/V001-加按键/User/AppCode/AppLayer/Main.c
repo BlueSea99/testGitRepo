@@ -14,6 +14,9 @@
 #include "wifi.h"
 
 
+
+
+
 void Init_Device(void)
 {
     CloseSwitchP;   // ¹Ø±Õ¼ÌµçÆ÷
